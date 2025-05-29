@@ -70,6 +70,9 @@ def get_user_favorites(user_id):
     favorites = Favorite.query.filter_by(user_id=user_id).all()
     return jsonify([fav.serialize() for fav in favorites]), 200
 
+
+
+# ---------------------- RUTAS Variadas? no se como ponerle a essto xd ----------------------
 # Agregar un favorito (character o planet)
 @app.route('/favorites', methods=['POST'])
 def add_favorite():
@@ -84,7 +87,7 @@ def add_favorite():
     if favorite_type == "character":
         favorite = Favorite(user_id=user_id, type=FavoriteType.character)
         db.session.add(favorite)
-        db.session.flush()  # Para obtener ID antes de commit
+        db.session.flush()  
         fav_char = FavoriteCharacter(id=favorite.id, character_id=entity_id)
         db.session.add(fav_char)
 
@@ -100,6 +103,10 @@ def add_favorite():
 
     db.session.commit()
     return jsonify(favorite.serialize()), 201
+
+
+
+
 
 # Eliminar un favorito
 @app.route('/favorites/<int:favorite_id>', methods=['DELETE'])
