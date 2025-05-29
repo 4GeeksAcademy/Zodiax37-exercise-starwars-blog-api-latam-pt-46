@@ -58,21 +58,83 @@ def get_characters():
     characters = Character.query.all()
     return jsonify([char.serialize() for char in characters]), 200
 
+
+#Obtner un personaje
+@app.route('/characters/<int:chr_id>', methods=['GET'])
+def get_character(chr_id):
+    character = Character.query.filter_by(id=chr_id).first()
+    return jsonify(character.serialize()), 200
+
+
 # Obtener todos los planetas
 @app.route('/planets', methods=['GET'])
 def get_planets():
     planets = Planet.query.all()
     return jsonify([planet.serialize() for planet in planets]), 200
 
+#Obtner un planeta
+@app.route('/planets/<int:plt_id>', methods=['GET'])
+def get_planet(plt_id):
+    planet = Planet.query.filter_by(id=plt_id).first()
+    return jsonify(planet.serialize()), 200
+
+
+
 # Obtener favoritos de un usuario
-@app.route('/users/<int:user_id>/favorites', methods=['GET'])
-def get_user_favorites(user_id):
-    favorites = Favorite.query.filter_by(user_id=user_id).all()
+@app.route('/users/favorites', methods=['GET'])
+def get_current_user_favorites():
+    # Supongamos que el usuario actual es de id=1 no se de autentucar u.u
+    current_user_id = 1  
+
+    favorites = Favorite.query.filter_by(user_id=current_user_id).all()
     return jsonify([fav.serialize() for fav in favorites]), 200
 
 
 
 # ---------------------- RUTAS Variadas? no se como ponerle a essto xd ----------------------
+
+
+@app.route("/users/favorites/characters/<int:character_id>", methods=["POST"])
+def add_favorite_character(character_id):
+    user = db.session.get(User, 1)
+    character = db.session.get(Character, character_id)
+    if not user or not character:
+        return jsonify({"msg": "Usuario o personaje no encontrado"}), 404
+
+    # Crear la entrada principal en Favorite
+    favorite = Favorite(user_id=1, type=FavoriteType.character)
+    db.session.add(favorite)
+    db.session.flush()  # para obtener el ID del favorito generado
+
+    # Crear el detalle
+    favorite_detail = FavoriteCharacter(id=favorite.id, character_id=character_id)
+    db.session.add(favorite_detail)
+    db.session.commit()
+
+    return jsonify(favorite.serialize()), 201
+
+
+
+@app.route("/users/favorites/planets/<int:planet_id>", methods=["POST"])
+def add_favorite_planet(planet_id):
+    user = db.session.get(User, 1)
+    planet = db.session.get(Planet, planet_id)
+    if not user or not planet:
+        return jsonify({"msg": "Usuario o planeta no encontrado"}), 404
+
+    favorite = Favorite(user_id=1, type=FavoriteType.planet)
+    db.session.add(favorite)
+    db.session.flush()
+
+    favorite_detail = FavoritePlanet(id=favorite.id, planet_id=planet_id)
+    db.session.add(favorite_detail)
+    db.session.commit()
+
+    return jsonify(favorite.serialize()), 201
+
+
+
+
 # Agregar un favorito (character o planet)
 @app.route('/favorites', methods=['POST'])
 def add_favorite():
@@ -108,16 +170,50 @@ def add_favorite():
 
 
 
-# Eliminar un favorito
-@app.route('/favorites/<int:favorite_id>', methods=['DELETE'])
-def delete_favorite(favorite_id):
-    favorite = Favorite.query.get(favorite_id)
+# # Eliminar un favorito
+# @app.route('/favorites/<int:favorite_id>', methods=['DELETE'])
+# def delete_favorite(favorite_id):
+#     favorite = Favorite.query.get(favorite_id)
+#     if not favorite:
+#         return jsonify({"error": "Favorite not found"}), 404
+
+#     db.session.delete(favorite)
+#     db.session.commit()
+#     return jsonify({"message": "Favorite deleted"}), 200
+
+
+@app.route("/users/favorites/characters/<int:character_id>", methods=["DELETE"])
+def delete_favorite_character(character_id):
+    favorite = (
+        db.session.query(Favorite)
+        .join(FavoriteCharacter)
+        .filter(Favorite.user_id == 1, FavoriteCharacter.character_id == character_id)
+        .first()
+    )
     if not favorite:
-        return jsonify({"error": "Favorite not found"}), 404
+        return jsonify({"msg": "Favorito no encontrado"}), 404
+
+    db.session.delete(favorite)  # esto también borra el detalle por cascade
+    db.session.commit()
+    return jsonify({"msg": "Favorito eliminado"}), 200
+
+
+@app.route("/users/favorites/planets/<int:planet_id>", methods=["DELETE"])
+def delete_favorite_planet(planet_id):
+    favorite = (
+        db.session.query(Favorite)
+        .join(FavoritePlanet)
+        .filter(Favorite.user_id == 1, FavoritePlanet.planet_id == planet_id)
+        .first()
+    )
+    if not favorite:
+        return jsonify({"msg": "Favorito no encontrado"}), 404
 
     db.session.delete(favorite)
     db.session.commit()
-    return jsonify({"message": "Favorite deleted"}), 200
+    return jsonify({"msg": "Favorito eliminado"}), 200
+
+
 
 
 # ---------------------- POST PARA CREAR DATOS (Users, Characters, Planets) ----------------------
